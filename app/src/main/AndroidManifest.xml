@@ -2,6 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="io.github.rosariopfernandes.pokeface">
 
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <!-- Required to act as a custom watch face. -->
     <application
         android:allowBackup="true"

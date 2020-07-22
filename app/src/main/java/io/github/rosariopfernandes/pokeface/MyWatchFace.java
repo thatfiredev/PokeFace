@@ -12,17 +12,23 @@ import android.graphics.ColorMatrix;
 import android.graphics.ColorMatrixColorFilter;
 import android.graphics.Paint;
 import android.graphics.Rect;
+import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.palette.graphics.Palette;
 
 import android.support.wearable.watchface.CanvasWatchFaceService;
 import android.support.wearable.watchface.WatchFaceService;
 import android.support.wearable.watchface.WatchFaceStyle;
 import android.view.SurfaceHolder;
-import android.widget.Toast;
+
+import com.bumptech.glide.Glide;
+import com.bumptech.glide.request.target.CustomTarget;
+import com.bumptech.glide.request.transition.Transition;
 
 import java.lang.ref.WeakReference;
 import java.util.Calendar;
@@ -115,6 +121,7 @@ public class MyWatchFace extends CanvasWatchFaceService {
         private Paint mBackgroundPaint;
         private Bitmap mBackgroundBitmap;
         private Bitmap mGrayBackgroundBitmap;
+        private int mBackgroundColor;
         private boolean mAmbient;
         private boolean mLowBitAmbient;
         private boolean mBurnInProtection;
@@ -123,9 +130,7 @@ public class MyWatchFace extends CanvasWatchFaceService {
         public void onCreate(SurfaceHolder holder) {
             super.onCreate(holder);
 
-            setWatchFaceStyle(new WatchFaceStyle.Builder(MyWatchFace.this)
-                    .setAcceptsTapEvents(true)
-                    .build());
+            setWatchFaceStyle(new WatchFaceStyle.Builder(MyWatchFace.this).build());
 
             mCalendar = Calendar.getInstance();
 
@@ -134,18 +139,23 @@ public class MyWatchFace extends CanvasWatchFaceService {
         }
 
         private void initializeBackground() {
+            mBackgroundBitmap = BitmapFactory.decodeResource(getResources(),
+                    R.drawable.preview_analog);
+            mBackgroundColor = Color.BLACK;
             mBackgroundPaint = new Paint();
-            mBackgroundPaint.setColor(Color.BLACK);
-            mBackgroundBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.bg);
+            mBackgroundPaint.setColor(mBackgroundColor);
+        }
 
-            /* Extracts colors from background image to improve watchface style. */
-            Palette.from(mBackgroundBitmap).generate(new Palette.PaletteAsyncListener() {
+        /* Extracts colors from background image to improve watchface style. */
+        private void extractColorsFromBackground(Bitmap backgroundBitmap) {
+            Palette.from(backgroundBitmap).generate(new Palette.PaletteAsyncListener() {
                 @Override
                 public void onGenerated(Palette palette) {
                     if (palette != null) {
                         mWatchHandHighlightColor = palette.getVibrantColor(Color.RED);
                         mWatchHandColor = palette.getLightVibrantColor(Color.WHITE);
                         mWatchHandShadowColor = palette.getDarkMutedColor(Color.BLACK);
+                        mBackgroundColor = palette.getDarkVibrantColor(Color.BLACK);
                         updateWatchHandStyle();
                     }
                 }
@@ -203,6 +213,36 @@ public class MyWatchFace extends CanvasWatchFaceService {
         @Override
         public void onTimeTick() {
             super.onTimeTick();
+            int currentDay = mCalendar.get(Calendar.DAY_OF_YEAR);
+            Glide.with(MyWatchFace.this)
+                    .asBitmap()
+                    .load("https://pokeres.bastionbot.org/images/pokemon/" + currentDay + ".png")
+                    .into(new CustomTarget<Bitmap>() {
+                        @Override
+                        public void onResourceReady(
+                                @NonNull Bitmap resource,
+                                @Nullable Transition<? super Bitmap> transition
+                        ) {
+                            extractColorsFromBackground(resource);
+                            /* Scale loaded background image (more efficient) if surface dimensions change. */
+                            int width = getSurfaceHolder().getSurfaceFrame().width();
+                            float scale = ((float) width) / (float) resource.getWidth();
+
+                            mBackgroundBitmap = Bitmap.createScaledBitmap(resource,
+                                    (int) (resource.getWidth() * scale),
+                                    (int) (resource.getHeight() * scale), true);
+
+                            //
+                            if (!mBurnInProtection && !mLowBitAmbient) {
+                                initGrayBackgroundBitmap();
+                            }
+                        }
+
+                        @Override
+                        public void onLoadCleared(@Nullable Drawable placeholder) {
+
+                        }
+                    });
             invalidate();
         }
 
@@ -287,26 +327,6 @@ public class MyWatchFace extends CanvasWatchFaceService {
             sHourHandLength = (float) (mCenterX * 0.5);
 
 
-            /* Scale loaded background image (more efficient) if surface dimensions change. */
-            float scale = ((float) width) / (float) mBackgroundBitmap.getWidth();
-
-            mBackgroundBitmap = Bitmap.createScaledBitmap(mBackgroundBitmap,
-                    (int) (mBackgroundBitmap.getWidth() * scale),
-                    (int) (mBackgroundBitmap.getHeight() * scale), true);
-
-            /*
-             * Create a gray version of the image only if it will look nice on the device in
-             * ambient mode. That means we don't want devices that support burn-in
-             * protection (slight movements in pixels, not great for images going all the way to
-             * edges) and low ambient mode (degrades image quality).
-             *
-             * Also, if your watch face will know about all images ahead of time (users aren't
-             * selecting their own photos for the watch face), it will be more
-             * efficient to create a black/white version (png, etc.) and load that when you need it.
-             */
-            if (!mBurnInProtection && !mLowBitAmbient) {
-                initGrayBackgroundBitmap();
-            }
         }
 
         private void initGrayBackgroundBitmap() {
@@ -323,39 +343,17 @@ public class MyWatchFace extends CanvasWatchFaceService {
             canvas.drawBitmap(mBackgroundBitmap, 0, 0, grayPaint);
         }
 
-        /**
-         * Captures tap event (and tap type). The {@link WatchFaceService#TAP_TYPE_TAP} case can be
-         * used for implementing specific logic to handle the gesture.
-         */
-        @Override
-        public void onTapCommand(int tapType, int x, int y, long eventTime) {
-            switch (tapType) {
-                case TAP_TYPE_TOUCH:
-                    // The user has started touching the screen.
-                    break;
-                case TAP_TYPE_TOUCH_CANCEL:
-                    // The user has started a different gesture or otherwise cancelled the tap.
-                    break;
-                case TAP_TYPE_TAP:
-                    // The user has completed the tap gesture.
-                    // TODO: Add code to handle the tap gesture.
-                    Toast.makeText(getApplicationContext(), R.string.message, Toast.LENGTH_SHORT)
-                            .show();
-                    break;
-            }
-            invalidate();
-        }
-
         @Override
         public void onDraw(Canvas canvas, Rect bounds) {
             long now = System.currentTimeMillis();
             mCalendar.setTimeInMillis(now);
 
+            canvas.drawColor(mBackgroundColor);
             drawBackground(canvas);
             drawWatchFace(canvas);
         }
 
-        private void drawBackground(Canvas canvas) {
+        private void drawBackground(final Canvas canvas) {
 
             if (mAmbient && (mLowBitAmbient || mBurnInProtection)) {
                 canvas.drawColor(Color.BLACK);
