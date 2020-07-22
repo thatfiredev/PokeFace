@@ -12,10 +12,13 @@ import android.graphics.ColorMatrix;
 import android.graphics.ColorMatrixColorFilter;
 import android.graphics.Paint;
 import android.graphics.Rect;
+import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.palette.graphics.Palette;
 
 import android.support.wearable.watchface.CanvasWatchFaceService;
@@ -23,6 +26,10 @@ import android.support.wearable.watchface.WatchFaceService;
 import android.support.wearable.watchface.WatchFaceStyle;
 import android.view.SurfaceHolder;
 import android.widget.Toast;
+
+import com.bumptech.glide.Glide;
+import com.bumptech.glide.request.target.CustomTarget;
+import com.bumptech.glide.request.transition.Transition;
 
 import java.lang.ref.WeakReference;
 import java.util.Calendar;
@@ -115,6 +122,7 @@ public class MyWatchFace extends CanvasWatchFaceService {
         private Paint mBackgroundPaint;
         private Bitmap mBackgroundBitmap;
         private Bitmap mGrayBackgroundBitmap;
+        private int mBackgroundColor;
         private boolean mAmbient;
         private boolean mLowBitAmbient;
         private boolean mBurnInProtection;
@@ -134,11 +142,11 @@ public class MyWatchFace extends CanvasWatchFaceService {
         }
 
         private void initializeBackground() {
+            mBackgroundBitmap = BitmapFactory.decodeResource(getResources(),
+                    R.drawable.preview_analog);
+            mBackgroundColor = Color.BLACK;
             mBackgroundPaint = new Paint();
-            mBackgroundPaint.setColor(Color.BLACK);
-            mBackgroundBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.bg);
-            extractColorsFromBackground(mBackgroundBitmap);
-
+            mBackgroundPaint.setColor(mBackgroundColor);
         }
 
         /* Extracts colors from background image to improve watchface style. */
@@ -150,6 +158,7 @@ public class MyWatchFace extends CanvasWatchFaceService {
                         mWatchHandHighlightColor = palette.getVibrantColor(Color.RED);
                         mWatchHandColor = palette.getLightVibrantColor(Color.WHITE);
                         mWatchHandShadowColor = palette.getDarkMutedColor(Color.BLACK);
+                        mBackgroundColor = palette.getDarkVibrantColor(Color.BLACK);
                         updateWatchHandStyle();
                     }
                 }
@@ -272,7 +281,7 @@ public class MyWatchFace extends CanvasWatchFaceService {
         }
 
         @Override
-        public void onSurfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+        public void onSurfaceChanged(SurfaceHolder holder, int format, final int width, int height) {
             super.onSurfaceChanged(holder, format, width, height);
 
             /*
@@ -290,27 +299,35 @@ public class MyWatchFace extends CanvasWatchFaceService {
             sMinuteHandLength = (float) (mCenterX * 0.75);
             sHourHandLength = (float) (mCenterX * 0.5);
 
+            int currentDay = mCalendar.get(Calendar.DAY_OF_YEAR);
+            Glide.with(MyWatchFace.this)
+                    .asBitmap()
+                    .load("https://pokeres.bastionbot.org/images/pokemon/" + currentDay + ".png")
+                    .into(new CustomTarget<Bitmap>() {
+                        @Override
+                        public void onResourceReady(
+                                @NonNull Bitmap resource,
+                                @Nullable Transition<? super Bitmap> transition
+                        ) {
+                            extractColorsFromBackground(resource);
+                            /* Scale loaded background image (more efficient) if surface dimensions change. */
+                            float scale = ((float) width) / (float) resource.getWidth();
 
-            /* Scale loaded background image (more efficient) if surface dimensions change. */
-            float scale = ((float) width) / (float) mBackgroundBitmap.getWidth();
+                            mBackgroundBitmap = Bitmap.createScaledBitmap(resource,
+                                    (int) (resource.getWidth() * scale),
+                                    (int) (resource.getHeight() * scale), true);
 
-            mBackgroundBitmap = Bitmap.createScaledBitmap(mBackgroundBitmap,
-                    (int) (mBackgroundBitmap.getWidth() * scale),
-                    (int) (mBackgroundBitmap.getHeight() * scale), true);
+                            //
+                            if (!mBurnInProtection && !mLowBitAmbient) {
+                                initGrayBackgroundBitmap();
+                            }
+                        }
 
-            /*
-             * Create a gray version of the image only if it will look nice on the device in
-             * ambient mode. That means we don't want devices that support burn-in
-             * protection (slight movements in pixels, not great for images going all the way to
-             * edges) and low ambient mode (degrades image quality).
-             *
-             * Also, if your watch face will know about all images ahead of time (users aren't
-             * selecting their own photos for the watch face), it will be more
-             * efficient to create a black/white version (png, etc.) and load that when you need it.
-             */
-            if (!mBurnInProtection && !mLowBitAmbient) {
-                initGrayBackgroundBitmap();
-            }
+                        @Override
+                        public void onLoadCleared(@Nullable Drawable placeholder) {
+
+                        }
+                    });
         }
 
         private void initGrayBackgroundBitmap() {
@@ -355,11 +372,12 @@ public class MyWatchFace extends CanvasWatchFaceService {
             long now = System.currentTimeMillis();
             mCalendar.setTimeInMillis(now);
 
+            canvas.drawColor(mBackgroundColor);
             drawBackground(canvas);
             drawWatchFace(canvas);
         }
 
-        private void drawBackground(Canvas canvas) {
+        private void drawBackground(final Canvas canvas) {
 
             if (mAmbient && (mLowBitAmbient || mBurnInProtection)) {
                 canvas.drawColor(Color.BLACK);
