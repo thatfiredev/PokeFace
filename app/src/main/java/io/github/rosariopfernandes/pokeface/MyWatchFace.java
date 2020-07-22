@@ -216,6 +216,36 @@ public class MyWatchFace extends CanvasWatchFaceService {
         @Override
         public void onTimeTick() {
             super.onTimeTick();
+            int currentDay = mCalendar.get(Calendar.DAY_OF_YEAR);
+            Glide.with(MyWatchFace.this)
+                    .asBitmap()
+                    .load("https://pokeres.bastionbot.org/images/pokemon/" + currentDay + ".png")
+                    .into(new CustomTarget<Bitmap>() {
+                        @Override
+                        public void onResourceReady(
+                                @NonNull Bitmap resource,
+                                @Nullable Transition<? super Bitmap> transition
+                        ) {
+                            extractColorsFromBackground(resource);
+                            /* Scale loaded background image (more efficient) if surface dimensions change. */
+                            int width = getSurfaceHolder().getSurfaceFrame().width();
+                            float scale = ((float) width) / (float) resource.getWidth();
+
+                            mBackgroundBitmap = Bitmap.createScaledBitmap(resource,
+                                    (int) (resource.getWidth() * scale),
+                                    (int) (resource.getHeight() * scale), true);
+
+                            //
+                            if (!mBurnInProtection && !mLowBitAmbient) {
+                                initGrayBackgroundBitmap();
+                            }
+                        }
+
+                        @Override
+                        public void onLoadCleared(@Nullable Drawable placeholder) {
+
+                        }
+                    });
             invalidate();
         }
 
@@ -299,35 +329,7 @@ public class MyWatchFace extends CanvasWatchFaceService {
             sMinuteHandLength = (float) (mCenterX * 0.75);
             sHourHandLength = (float) (mCenterX * 0.5);
 
-            int currentDay = mCalendar.get(Calendar.DAY_OF_YEAR);
-            Glide.with(MyWatchFace.this)
-                    .asBitmap()
-                    .load("https://pokeres.bastionbot.org/images/pokemon/" + currentDay + ".png")
-                    .into(new CustomTarget<Bitmap>() {
-                        @Override
-                        public void onResourceReady(
-                                @NonNull Bitmap resource,
-                                @Nullable Transition<? super Bitmap> transition
-                        ) {
-                            extractColorsFromBackground(resource);
-                            /* Scale loaded background image (more efficient) if surface dimensions change. */
-                            float scale = ((float) width) / (float) resource.getWidth();
 
-                            mBackgroundBitmap = Bitmap.createScaledBitmap(resource,
-                                    (int) (resource.getWidth() * scale),
-                                    (int) (resource.getHeight() * scale), true);
-
-                            //
-                            if (!mBurnInProtection && !mLowBitAmbient) {
-                                initGrayBackgroundBitmap();
-                            }
-                        }
-
-                        @Override
-                        public void onLoadCleared(@Nullable Drawable placeholder) {
-
-                        }
-                    });
         }
 
         private void initGrayBackgroundBitmap() {
