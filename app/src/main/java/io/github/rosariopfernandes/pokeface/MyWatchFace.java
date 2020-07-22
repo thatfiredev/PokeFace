@@ -131,9 +131,7 @@ public class MyWatchFace extends CanvasWatchFaceService {
         public void onCreate(SurfaceHolder holder) {
             super.onCreate(holder);
 
-            setWatchFaceStyle(new WatchFaceStyle.Builder(MyWatchFace.this)
-                    .setAcceptsTapEvents(true)
-                    .build());
+            setWatchFaceStyle(new WatchFaceStyle.Builder(MyWatchFace.this).build());
 
             mCalendar = Calendar.getInstance();
 
@@ -344,29 +342,6 @@ public class MyWatchFace extends CanvasWatchFaceService {
             ColorMatrixColorFilter filter = new ColorMatrixColorFilter(colorMatrix);
             grayPaint.setColorFilter(filter);
             canvas.drawBitmap(mBackgroundBitmap, 0, 0, grayPaint);
-        }
-
-        /**
-         * Captures tap event (and tap type). The {@link WatchFaceService#TAP_TYPE_TAP} case can be
-         * used for implementing specific logic to handle the gesture.
-         */
-        @Override
-        public void onTapCommand(int tapType, int x, int y, long eventTime) {
-            switch (tapType) {
-                case TAP_TYPE_TOUCH:
-                    // The user has started touching the screen.
-                    break;
-                case TAP_TYPE_TOUCH_CANCEL:
-                    // The user has started a different gesture or otherwise cancelled the tap.
-                    break;
-                case TAP_TYPE_TAP:
-                    // The user has completed the tap gesture.
-                    // TODO: Add code to handle the tap gesture.
-                    Toast.makeText(getApplicationContext(), R.string.message, Toast.LENGTH_SHORT)
-                            .show();
-                    break;
-            }
-            invalidate();
         }
 
         @Override
