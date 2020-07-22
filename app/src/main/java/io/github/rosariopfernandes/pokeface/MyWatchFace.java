@@ -137,9 +137,13 @@ public class MyWatchFace extends CanvasWatchFaceService {
             mBackgroundPaint = new Paint();
             mBackgroundPaint.setColor(Color.BLACK);
             mBackgroundBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.bg);
+            extractColorsFromBackground(mBackgroundBitmap);
 
-            /* Extracts colors from background image to improve watchface style. */
-            Palette.from(mBackgroundBitmap).generate(new Palette.PaletteAsyncListener() {
+        }
+
+        /* Extracts colors from background image to improve watchface style. */
+        private void extractColorsFromBackground(Bitmap backgroundBitmap) {
+            Palette.from(backgroundBitmap).generate(new Palette.PaletteAsyncListener() {
                 @Override
                 public void onGenerated(Palette palette) {
                     if (palette != null) {
