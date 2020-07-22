@@ -25,7 +25,6 @@ import android.support.wearable.watchface.CanvasWatchFaceService;
 import android.support.wearable.watchface.WatchFaceService;
 import android.support.wearable.watchface.WatchFaceStyle;
 import android.view.SurfaceHolder;
-import android.widget.Toast;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.request.target.CustomTarget;
@@ -309,7 +308,7 @@ public class MyWatchFace extends CanvasWatchFaceService {
         }
 
         @Override
-        public void onSurfaceChanged(SurfaceHolder holder, int format, final int width, int height) {
+        public void onSurfaceChanged(SurfaceHolder holder, int format, int width, int height) {
             super.onSurfaceChanged(holder, format, width, height);
 
             /*
